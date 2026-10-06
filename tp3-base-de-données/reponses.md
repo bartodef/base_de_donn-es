@@ -11,7 +11,6 @@ Un delete ne peut pas la violer.
 
 Pour émuler la clé primaire, R est créée en MyISAM sans clé primaire. Deux triggers, un before insert et un before update, refusent la ligne si A est null ou si A existe déjà dans R. Pour l'update, on vérifie le doublon seulement si A change, sinon la ligne se trouverait elle-même.
 
-Tests :
 
 ```sql
 insert into R values (1, 30);       -- erreur, doublon
@@ -86,7 +85,6 @@ Deuxième contrainte : elle porte sur plusieurs lignes, la moyenne d'un départe
 
 Si la moyenne dépasse 5000, le trigger renvoie une erreur et la requête est annulée.
 
-Tests :
 
 ```sql
 update EMP set SAL = 8000 where EID = 7566;     -- erreur, JONES a un chef
@@ -117,7 +115,6 @@ Trois triggers after sur EMP :
 
 Les employés du TP2 sont insérés au début du script, avant les triggers. On remplit donc leur historique avec un insert à la fin du script.
 
-Test :
 
 ```sql
 insert into EMP values (9001, 'doe', 'CLERK', 7782, date '2020-01-01', 1000, null, 10);
