@@ -74,9 +74,9 @@ update S set B = 5 where B = 2;     -- set null : R(20) passe à NULL / cascade 
 ## Exercice 3
 
 ```sql
-constraint EMP_CK_SAL check (SAL > 0),
-constraint EMP_CK_HIRED check (HIRED <= curdate()),
-constraint EMP_CK_ENAME check (ENAME = upper(ENAME) and ENAME <> '')
+alter table EMP add constraint EMP_CK_SAL check (SAL > 0);
+alter table EMP add constraint EMP_CK_HIRED check (HIRED <= curdate());
+alter table EMP add constraint EMP_CK_ENAME check (ENAME = upper(ENAME) and ENAME <> '');
 ```
 
 Le SGBD vérifie ces contraintes à chaque `INSERT` et `UPDATE` sur `EMP`, ligne par ligne, et au moment du `ALTER TABLE` s'il y a déjà des données.
@@ -84,11 +84,11 @@ Le SGBD vérifie ces contraintes à chaque `INSERT` et `UPDATE` sur `EMP`, ligne
 En lançant le script (MySQL 8.0) :
 
 - a) marche, `SAL = -5` est refusé.
-- b) la table n'est même pas créée : `contains disallowed function: curdate`. Une contrainte `check` doit donner toujours le même résultat, or `curdate()` change chaque jour.
+- b) la contrainte est refusée : `contains disallowed function: curdate`. Une contrainte `check` doit donner toujours le même résultat, or `curdate()` change chaque jour.
 - c) `'king'` est accepté. La comparaison de chaînes de MySQL ne tient pas compte de la casse, donc `'king' = 'KING'` est vrai. Il faut comparer en binaire :
 
 ```sql
-constraint EMP_CK_ENAME check (cast(ENAME as binary) = cast(upper(ENAME) as binary) and ENAME <> '')
+alter table EMP add constraint EMP_CK_ENAME check (cast(ENAME as binary) = cast(upper(ENAME) as binary) and ENAME <> '');
 ```
 
 Avant MySQL 8.0.16, c'est pire : les `check` sont lus puis ignorés sans message.
@@ -100,7 +100,7 @@ Conclusion : un `check` ne suffit pas toujours, il faut tester. Pour b on passe 
 Première contrainte : elle ne porte que sur la ligne, un `check` suffit. On considère qu'un top-level manager est un employé sans chef (`MGR` à `NULL`) :
 
 ```sql
-constraint EMP_CK_SAL_MAX check (SAL < 7500 or MGR is null)
+alter table EMP add constraint EMP_CK_SAL_MAX check (SAL < 7500 or MGR is null);
 ```
 
 Deuxième contrainte : elle porte sur plusieurs lignes (moyenne par département). En SQL standard ce serait une assertion :
@@ -178,7 +178,11 @@ Trois triggers `after` sur `EMP` :
 - `update` : `(NEW.EID, curdate(), NEW.SAL)`, seulement si `NEW.SAL <> OLD.SAL`.
 - `delete` : `(OLD.EID, curdate(), null)`, le départ.
 
-Les triggers sont créés avant les `insert` du script, donc `SALHIST` est remplie dès le départ avec le salaire d'embauche de chaque employé.
+Les employés du TP2 sont insérés en haut du script, avant les triggers. On démarre donc leur historique à la main :
+
+```sql
+insert into SALHIST select EID, HIRED, SAL from EMP;
+```
 
 Test :
 
