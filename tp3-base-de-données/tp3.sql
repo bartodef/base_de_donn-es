@@ -5,8 +5,6 @@ drop table if exists MISSION;
 drop table if exists EMP;
 drop table if exists DEPT;
 
-set session sql_mode = 'ONLY_FULL_GROUP_BY';
-
 create table DEPT (
     DID     int,
     DNAME   varchar(20) not null,
@@ -50,15 +48,12 @@ insert into EMP values(7566, 'JONES',   'MANAGER',      7839, date '1981-04-02',
 insert into EMP values(7698, 'BLAKE',   'MANAGER',      7839, date '1981-05-01', 2850.00,   null,   30);
 insert into EMP values(7782, 'CLARK',   'MANAGER',      7839, date '1981-06-09', 2450.00,   null,   10);
 insert into EMP values(8000, 'SMITH',   'MANAGER',      7839, date '1980-12-17', 3000.00,   null,   10);
---
 insert into EMP values(7788, 'SCOTT',   'ANALYST',      7566, date '1981-11-09', 3000.00,   null,   20);
 insert into EMP values(7902, 'FORD',    'ANALYST',      7566, date '1981-12-03', 3000.00,   null,   20);
---
 insert into EMP values(7499, 'ALLEN',   'SALESMAN',     7698, date '1981-02-20', 1600.00,   300.00, 30);
 insert into EMP values(7521, 'WARD',    'SALESMAN',     7698, date '1981-02-22', 1250.00,   500.00, 30);
 insert into EMP values(7654, 'MARTIN',  'SALESMAN',     7698, date '1981-09-28', 1250.00,   1400.00, 30);
 insert into EMP values(7844, 'TURNER',  'SALESMAN',     7698, date '1981-09-08', 1500.00,   0.00,   30);
---
 insert into EMP values(7900, 'JAMES',   'CLERK',        7698, date '1981-12-03', 950.00,    null,   30);
 insert into EMP values(7934, 'MILLER',  'CLERK',        7782, date '1982-01-23', 1300.00,   null,   10);
 insert into EMP values(7876, 'ADAMS',   'CLERK',        7788, date '1981-09-23', 1100.00,   null,   20);
@@ -73,7 +68,6 @@ insert into MISSION values(214, 7900, 'Fidal',      'PARIS',    date '2011-06-07
 insert into MISSION values(213, 7902, 'Oracle',     'DALLAS',   date '2011-04-11');
 insert into MISSION values(220, 7369, 'IBM',        'LONDON',   date '2015-06-20');
 insert into MISSION values(300, 8000, 'ECE',        'PARIS',    date '2018-06-11');
-
 
 -- Exercice 1
 
@@ -91,7 +85,7 @@ before insert on R
 for each row
 begin
     if NEW.A is null or exists (select * from R where A = NEW.A) then
-        signal sqlstate '23000' set message_text = 'Violation de la cle primaire de R';
+        signal sqlstate '45000' set message_text = 'Cle primaire de R';
     end if;
 end $$
 
@@ -100,7 +94,7 @@ before update on R
 for each row
 begin
     if NEW.A is null or (NEW.A <> OLD.A and exists (select * from R where A = NEW.A)) then
-        signal sqlstate '23000' set message_text = 'Violation de la cle primaire de R';
+        signal sqlstate '45000' set message_text = 'Cle primaire de R';
     end if;
 end $$
 
@@ -110,7 +104,6 @@ insert into R values (1, 10);
 insert into R values (2, 20);
 
 select * from R;
-
 
 -- Exercice 2
 
@@ -127,7 +120,7 @@ create table R (
     B   int
 ) engine=MyISAM;
 
--- R : toujours rejeté si B n'existe pas dans S
+-- R : B doit exister dans S
 
 delimiter $$
 
@@ -136,7 +129,7 @@ before insert on R
 for each row
 begin
     if NEW.B is not null and not exists (select * from S where B = NEW.B) then
-        signal sqlstate '23000' set message_text = 'Violation de la cle etrangere R.B';
+        signal sqlstate '45000' set message_text = 'B absent de S';
     end if;
 end $$
 
@@ -145,7 +138,7 @@ before update on R
 for each row
 begin
     if NEW.B is not null and not exists (select * from S where B = NEW.B) then
-        signal sqlstate '23000' set message_text = 'Violation de la cle etrangere R.B';
+        signal sqlstate '45000' set message_text = 'B absent de S';
     end if;
 end $$
 
@@ -210,7 +203,7 @@ before delete on S
 for each row
 begin
     if exists (select * from R where B = OLD.B) then
-        signal sqlstate '23000' set message_text = 'Ligne de S encore referencee par R';
+        signal sqlstate '45000' set message_text = 'B utilise dans R';
     end if;
 end $$
 
@@ -219,7 +212,7 @@ before update on S
 for each row
 begin
     if NEW.B <> OLD.B and exists (select * from R where B = OLD.B) then
-        signal sqlstate '23000' set message_text = 'Ligne de S encore referencee par R';
+        signal sqlstate '45000' set message_text = 'B utilise dans R';
     end if;
 end $$
 
@@ -232,7 +225,6 @@ insert into R values (20, null);
 
 select * from S;
 select * from R;
-
 
 -- Exercice 3
 
@@ -249,7 +241,7 @@ before insert on EMP
 for each row
 begin
     if NEW.HIRED > curdate() then
-        signal sqlstate '45000' set message_text = 'Date d embauche dans le futur';
+        signal sqlstate '45000' set message_text = 'Date dans le futur';
     end if;
 end $$
 
@@ -258,12 +250,11 @@ before update on EMP
 for each row
 begin
     if NEW.HIRED > curdate() then
-        signal sqlstate '45000' set message_text = 'Date d embauche dans le futur';
+        signal sqlstate '45000' set message_text = 'Date dans le futur';
     end if;
 end $$
 
 delimiter ;
-
 
 -- Exercice 4
 
@@ -276,7 +267,7 @@ after insert on EMP
 for each row
 begin
     if (select avg(SAL) from EMP where DID = NEW.DID) > 5000 then
-        signal sqlstate '45000' set message_text = 'Salaire moyen du departement > 5000';
+        signal sqlstate '45000' set message_text = 'Moyenne > 5000';
     end if;
 end $$
 
@@ -286,7 +277,7 @@ for each row
 begin
     if (select avg(SAL) from EMP where DID = NEW.DID) > 5000
     or (select avg(SAL) from EMP where DID = OLD.DID) > 5000 then
-        signal sqlstate '45000' set message_text = 'Salaire moyen du departement > 5000';
+        signal sqlstate '45000' set message_text = 'Moyenne > 5000';
     end if;
 end $$
 
@@ -295,12 +286,11 @@ after delete on EMP
 for each row
 begin
     if (select avg(SAL) from EMP where DID = OLD.DID) > 5000 then
-        signal sqlstate '45000' set message_text = 'Salaire moyen du departement > 5000';
+        signal sqlstate '45000' set message_text = 'Moyenne > 5000';
     end if;
 end $$
 
 delimiter ;
-
 
 -- Exercice 5
 
@@ -311,7 +301,7 @@ before insert on EMP
 for each row
 begin
     if NEW.SAL <= 0 then
-        signal sqlstate '45000' set message_text = 'Le salaire doit etre positif';
+        signal sqlstate '45000' set message_text = 'Salaire <= 0';
     end if;
 end $$
 
@@ -320,12 +310,11 @@ before update on EMP
 for each row
 begin
     if NEW.SAL <= 0 then
-        signal sqlstate '45000' set message_text = 'Le salaire doit etre positif';
+        signal sqlstate '45000' set message_text = 'Salaire <= 0';
     end if;
 end $$
 
 delimiter ;
-
 
 -- Exercice 6
 
@@ -346,7 +335,6 @@ begin
 end $$
 
 delimiter ;
-
 
 -- Exercice 7
 
