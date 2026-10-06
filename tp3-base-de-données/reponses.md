@@ -1,7 +1,5 @@
 # TP Bases de données, contraintes et triggers
 
-Le code est dans tp3.sql.
-
 ## Exercice 1
 
 Les requêtes qui peuvent violer la clé primaire de R sont :
@@ -64,13 +62,11 @@ alter table EMP add constraint EMP_CK_ENAME check (ENAME = upper(ENAME) and ENAM
 
 Le SGBD vérifie ces contraintes à chaque insert et update sur EMP, et aussi au moment du alter table sur les données déjà présentes.
 
-En lançant le script avec MySQL 8 :
+En lançant le script:
 
 - a marche, un salaire négatif est refusé
 - b est refusée par MySQL, car curdate change tous les jours et une contrainte check doit toujours donner le même résultat
 - c laisse passer 'king', car MySQL compare les chaînes sans faire attention aux majuscules. Il faut comparer en binaire, c'est ce qui est fait dans le script
-
-Avec les versions de MySQL avant la 8.0.16, les check sont acceptés mais ne sont jamais vérifiés.
 
 Conclusion : un check ne marche pas toujours, il faut le tester. Pour b, on utilise un trigger qui refuse une date d'embauche plus grande que la date du jour.
 
