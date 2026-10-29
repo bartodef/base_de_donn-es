@@ -159,7 +159,7 @@ end $$
 delimiter ;
 ```
 
-MySQL ne permet pas de faire un trigger seulement sur une colonne. Le trigger se déclenche sur tout update de customers et vérifie lui-même que la résidence a changé. On utilise <=> au lieu de <> pour que le passage de null à un pays, ou d'un pays à null, soit aussi enregistré.
+MySQL et MariaDB ne permettent pas de faire un trigger seulement sur une colonne. Le trigger se déclenche sur tout update de customers et vérifie lui-même que la résidence a changé. On utilise <=> au lieu de <> pour que le passage de null à un pays, ou d'un pays à null, soit aussi enregistré.
 
 Pas de clé étrangère vers customers, sinon on ne pourrait plus supprimer un client qui a un historique.
 
@@ -177,7 +177,7 @@ Résultat : 3 lignes dans le log (USA vers Germany, null vers Italy, France vers
 
 # Partie 3
 
-Il faut deux sessions ouvertes en même temps : deux consoles mysql, ou deux connexions dans Workbench. Les étapes sont numérotées dans partie3.sql.
+Il faut deux sessions ouvertes en même temps : deux consoles mariadb, ou deux sessions dans HeidiSQL ou Workbench. phpMyAdmin ne marche pas, il ne garde pas la transaction ouverte. Les étapes sont numérotées dans partie3.sql.
 
 ## Tâche 1
 
@@ -191,6 +191,8 @@ En SERIALIZABLE, A pose des verrous sur ce qu'elle lit. L'insert de B reste bloq
 
 En REPEATABLE READ, l'insert de B passe tout de suite. A relit et voit toujours 2 lignes, car elle lit une photo de la base prise à sa première lecture. Mais quand A fait un update sur les commandes du produit 1, l'update modifie 3 lignes, y compris celle de B, et la ligne de B apparaît ensuite dans le select de A. La photo protège les simples lectures, pas les écritures.
 
+Avec MariaDB 11.6 et plus, c'est différent : l'update de A est refusé avec l'erreur 1020 (Record has changed since last read) et la transaction de A est annulée. MariaDB préfère arrêter A plutôt que de lui faire voir une ligne qui n'était pas dans sa photo. Il n'y a pas de fantôme, mais A doit tout recommencer.
+
 En SERIALIZABLE, l'insert de B est bloqué dès que A a lu les commandes du produit 1. A voit 2 lignes du début à la fin, et son update ne modifie que 2 lignes. B ne continue que quand A a fini.
 
-Différence : REPEATABLE READ ne bloque pas les autres transactions et donne de bonnes performances, mais une ligne fantôme peut apparaître si la transaction écrit. SERIALIZABLE évite tous les fantômes, mais les autres transactions doivent attendre, avec un risque d'attente trop longue (erreur après 50 secondes) ou de blocage mutuel.
+Différence : REPEATABLE READ ne bloque pas les autres transactions et donne de bonnes performances, mais si la transaction écrit, une ligne fantôme peut apparaître (MySQL, MariaDB avant 11.6) ou la transaction est annulée (MariaDB 11.6 et plus). SERIALIZABLE évite tous les fantômes, mais les autres transactions doivent attendre, avec un risque d'attente trop longue (erreur après 50 secondes) ou de blocage mutuel.

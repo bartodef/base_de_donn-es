@@ -1,12 +1,15 @@
 -- Partie 3 : transactions
 --
 -- Il faut deux sessions ouvertes en même temps sur la base Suppliers :
--- deux consoles mysql, ou deux connexions dans MySQL Workbench
--- (deux onglets de la même connexion partagent la même session, ça ne marche pas).
+-- deux consoles mariadb (ou mysql), ou deux sessions dans HeidiSQL ou Workbench.
+-- Deux onglets de la même connexion partagent la même session, ça ne marche pas.
+-- phpMyAdmin ne marche pas non plus : il ne garde pas la transaction ouverte entre deux requêtes.
 --
 -- On exécute les étapes dans l'ordre indiqué, en passant d'une session à l'autre.
--- Quand une session attend un verrou, MySQL abandonne au bout de 50 secondes :
+-- Quand une session attend un verrou, le serveur abandonne au bout de 50 secondes :
 -- il faut donc enchaîner les étapes assez vite.
+--
+-- Pour connaître sa version : select version();
 
 
 -- ============================================================
@@ -55,7 +58,7 @@ delete from customers where cid = 6;
 -- Tâche 2 : REPEATABLE READ et SERIALIZABLE
 -- ============================================================
 
--- 2.a) REPEATABLE READ (niveau par défaut de MySQL)
+-- 2.a) REPEATABLE READ (niveau par défaut de MySQL et MariaDB)
 
 -- Session A, étape 1 : commandes du produit 1
 set session transaction isolation level repeatable read;
@@ -69,8 +72,11 @@ insert into orders values (1, 5, date '2015-01-01', 1);   -- passe tout de suite
 select * from orders where pid = 1;                       -- toujours 2 lignes : A lit une photo prise à sa première lecture
 
 -- Session A, étape 4 : A modifie les commandes du produit 1
-update orders set quantity = quantity + 1 where pid = 1;  -- 3 lignes modifiées : l'update voit la commande de B
-select * from orders where pid = 1;                       -- 3 lignes : la ligne fantôme apparaît après l'update
+update orders set quantity = quantity + 1 where pid = 1;
+-- MySQL et MariaDB avant 11.6 : 3 lignes modifiées, l'update voit la commande de B
+-- MariaDB 11.6 et plus : erreur 1020 "Record has changed since last read",
+--                        la transaction de A est annulée automatiquement
+select * from orders where pid = 1;                       -- avant 11.6 : 3 lignes, la ligne fantôme apparaît après l'update
 rollback;                                                 -- on annule la modification
 
 -- Session B, étape 5
